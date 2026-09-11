@@ -35,6 +35,18 @@ function formatDateOnly(d: Date): string {
   return d.toISOString().slice(0, 10)
 }
 
+export function isMilestoneInProgress(milestone: GitlabMilestone, referenceDate = new Date()): boolean {
+  if (milestone.state !== 'active') return false
+  const today = toDateOnly(referenceDate)
+  if (milestone.start_date && parseDateOnly(milestone.start_date).getTime() > today.getTime()) {
+    return false
+  }
+  if (milestone.due_date && parseDateOnly(milestone.due_date).getTime() < today.getTime()) {
+    return false
+  }
+  return true
+}
+
 export async function computeMilestoneBurndown(
   config: GitlabConfig,
   milestone: GitlabMilestone,
@@ -52,7 +64,7 @@ export async function computeMilestoneBurndown(
       try {
         const events = await getIssueResourceLabelEvents(config, issue.iid)
         const adds = events
-          .filter((e) => e.action === 'add' && e.label?.name === config.doneLabel)
+          .filter((e) => e.action === 'add' && e.label && config.doneLabels.includes(e.label.name))
           .map((e) => new Date(e.created_at))
           .sort((a, b) => a.getTime() - b.getTime())
         if (adds.length > 0) return adds[0]

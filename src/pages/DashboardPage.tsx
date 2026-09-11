@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useConfig } from '../lib/config'
 import { GitlabApiError, getActiveMilestones } from '../lib/gitlabApi'
+import { isMilestoneInProgress } from '../lib/burndown'
 import { MilestoneCard } from '../components/MilestoneCard'
 import type { GitlabMilestone } from '../types/gitlab'
 
@@ -18,7 +19,7 @@ export function DashboardPage() {
     setError(null)
     getActiveMilestones(config)
       .then((result) => {
-        if (!cancelled) setMilestones(result)
+        if (!cancelled) setMilestones(result.filter((m) => isMilestoneInProgress(m)))
       })
       .catch((err) => {
         if (!cancelled) {
@@ -49,7 +50,10 @@ export function DashboardPage() {
     <>
       <div className="page-header">
         <h1>Relatório de burndown</h1>
-        <p>Milestones em andamento em {config.projectPath}, com base na coluna "{config.doneLabel}".</p>
+        <p>
+          Milestones em andamento em {config.projectPath}, com base na(s) coluna(s) "
+          {config.doneLabels.join('", "')}".
+        </p>
       </div>
 
       {loading && <div className="spinner-row">Carregando milestones…</div>}

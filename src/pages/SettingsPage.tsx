@@ -11,7 +11,8 @@ export function SettingsPage() {
   const [baseUrl, setBaseUrl] = useState(config?.baseUrl ?? 'https://gitlab.com')
   const [token, setToken] = useState(config?.token ?? '')
   const [projectPath, setProjectPath] = useState(config?.projectPath ?? '')
-  const [doneLabel, setDoneLabel] = useState(config?.doneLabel ?? '')
+  const [doneLabels, setDoneLabels] = useState<string[]>(config?.doneLabels ?? [])
+  const [doneLabelInput, setDoneLabelInput] = useState('')
 
   const [loadingBoards, setLoadingBoards] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -21,8 +22,19 @@ export function SettingsPage() {
   const [lists, setLists] = useState<GitlabBoardList[]>([])
   const [saved, setSaved] = useState(false)
 
+  function addDoneLabel(value: string) {
+    const name = value.trim()
+    if (!name) return
+    setDoneLabels((prev) => (prev.includes(name) ? prev : [...prev, name]))
+    setDoneLabelInput('')
+  }
+
+  function removeDoneLabel(name: string) {
+    setDoneLabels((prev) => prev.filter((l) => l !== name))
+  }
+
   async function loadBoardLists(boardId: number) {
-    const boardLists = await getBoardLists({ baseUrl, token, projectPath, doneLabel }, boardId)
+    const boardLists = await getBoardLists({ baseUrl, token, projectPath, doneLabels }, boardId)
     setLists(boardLists.filter((l) => l.label))
   }
 
@@ -35,7 +47,7 @@ export function SettingsPage() {
     }
     setLoadingBoards(true)
     try {
-      const cfg = { baseUrl, token, projectPath, doneLabel }
+      const cfg = { baseUrl, token, projectPath, doneLabels }
       const project = await getProject(cfg)
       setProjectName(project.name_with_namespace)
       const projectBoards = await getBoards(cfg)
@@ -69,15 +81,15 @@ export function SettingsPage() {
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
-    if (!baseUrl.trim() || !token.trim() || !projectPath.trim() || !doneLabel.trim()) {
-      setError('Preencha todos os campos, incluindo a coluna que representa "finalizado".')
+    if (!baseUrl.trim() || !token.trim() || !projectPath.trim() || doneLabels.length === 0) {
+      setError('Preencha todos os campos e adicione ao menos uma coluna que representa "finalizado".')
       return
     }
     setConfig({
       baseUrl: baseUrl.trim(),
       token: token.trim(),
       projectPath: projectPath.trim(),
-      doneLabel: doneLabel.trim(),
+      doneLabels,
     })
     setSaved(true)
     navigate('/')
@@ -88,7 +100,8 @@ export function SettingsPage() {
     setBaseUrl('https://gitlab.com')
     setToken('')
     setProjectPath('')
-    setDoneLabel('')
+    setDoneLabels([])
+    setDoneLabelInput('')
     setProjectName(null)
     setBoards([])
     setLists([])
@@ -174,25 +187,79 @@ export function SettingsPage() {
         )}
 
         <div className="form-field">
-          <label htmlFor="doneLabel">Coluna que representa "finalizado"</label>
-          <input
-            id="doneLabel"
-            type="text"
-            list="done-columns"
-            placeholder="Done"
-            value={doneLabel}
-            onChange={(e) => setDoneLabel(e.target.value)}
-            required
-          />
+          <label htmlFor="doneLabel">Colunas que representam "finalizado"</label>
+
+          {doneLabels.length > 0 && (
+            <div className="tag-list">
+              {doneLabels.map((name) => (
+                <span key={name} className="tag">
+                  {name}
+                  <button
+                    type="button"
+                    className="tag-remove"
+                    aria-label={`Remover coluna ${name}`}
+                    onClick={() => removeDoneLabel(name)}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className="form-row">
+            <input
+              id="doneLabel"
+              type="text"
+              list="done-columns"
+              placeholder="Done"
+              value={doneLabelInput}
+              onChange={(e) => setDoneLabelInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  addDoneLabel(doneLabelInput)
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="btn"
+              style={{ flex: '0 0 auto' }}
+              onClick={() => addDoneLabel(doneLabelInput)}
+            >
+              Adicionar
+            </button>
+          </div>
           <datalist id="done-columns">
-            {lists.map((list) => (
-              <option key={list.id} value={list.label?.name ?? ''} />
-            ))}
+            {lists
+              .filter((l) => l.label && !doneLabels.includes(l.label.name))
+              .map((list) => (
+                <option key={list.id} value={list.label?.name ?? ''} />
+              ))}
           </datalist>
+
+          {lists.length > 0 && (
+            <div className="tag-list">
+              {lists
+                .filter((l) => l.label && !doneLabels.includes(l.label.name))
+                .map((list) => (
+                  <button
+                    key={list.id}
+                    type="button"
+                    className="tag tag-suggestion"
+                    onClick={() => addDoneLabel(list.label?.name ?? '')}
+                  >
+                    + {list.label?.name}
+                  </button>
+                ))}
+            </div>
+          )}
+
           <span className="hint">
             {lists.length > 0
-              ? 'Selecione (ou digite) a coluna do quadro que indica que a tarefa foi concluída. O burndown considera as tarefas que entraram nessa coluna.'
-              : 'Digite o nome exato da label/coluna do quadro que indica conclusão. Carregue os quadros acima para ver sugestões.'}
+              ? 'Clique nas colunas do quadro para adicioná-las, ou digite manualmente. Uma tarefa é considerada finalizada ao entrar em qualquer uma das colunas selecionadas.'
+              : 'Digite o nome exato de cada label/coluna que indica conclusão. Carregue os quadros acima para ver sugestões.'}
           </span>
         </div>
 
