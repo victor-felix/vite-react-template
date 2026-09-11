@@ -8,7 +8,13 @@ export function loadConfig(): GitlabConfig | null {
     const raw = sessionStorage.getItem(STORAGE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as Partial<GitlabConfig>
-    if (!parsed.baseUrl || !parsed.token || !parsed.projectPath || !parsed.doneLabel) {
+    if (
+      !parsed.baseUrl ||
+      !parsed.token ||
+      !parsed.projectPath ||
+      !parsed.doneLabels ||
+      parsed.doneLabels.length === 0
+    ) {
       return null
     }
     return parsed as GitlabConfig

@@ -2,7 +2,7 @@ export interface GitlabConfig {
   baseUrl: string
   token: string
   projectPath: string
-  doneLabel: string
+  doneLabels: string[]
 }
 
 export interface GitlabProject {

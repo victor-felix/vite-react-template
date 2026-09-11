@@ -103,9 +103,54 @@
   gap: 1rem;
 }
 
-.form-row > .form-field {
+.form-row > .form-field,
+.form-row > input {
   flex: 1;
   min-width: 0;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  padding: 0.25rem 0.5rem 0.25rem 0.7rem;
+}
+
+.tag-remove {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.15rem;
+}
+
+.tag-remove:hover {
+  color: var(--status-critical);
+}
+
+.tag-suggestion {
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 0.25rem 0.65rem;
+}
+
+.tag-suggestion:hover {
+  border-color: var(--series-actual);
+  color: var(--series-actual);
 }
 
 input[type='text'],
