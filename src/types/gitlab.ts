@@ -58,3 +58,21 @@ export interface GitlabResourceLabelEvent {
   created_at: string
   label: GitlabLabel | null
 }
+
+export interface GitlabMergeRequest {
+  id: number
+  iid: number
+  title: string
+  state: 'opened' | 'closed' | 'merged' | 'locked'
+  draft: boolean
+  author: {
+    name: string
+    username: string
+  }
+  source_branch: string
+  target_branch: string
+  web_url: string
+  created_at: string
+  updated_at: string
+  labels: string[]
+}

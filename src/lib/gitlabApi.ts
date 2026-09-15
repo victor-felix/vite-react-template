@@ -3,6 +3,7 @@ import type {
   GitlabBoardList,
   GitlabConfig,
   GitlabIssue,
+  GitlabMergeRequest,
   GitlabMilestone,
   GitlabProject,
   GitlabResourceLabelEvent,
@@ -110,5 +111,13 @@ export function getBoardLists(
     config,
     `/projects/${projectIdParam(config.projectPath)}/boards/${boardId}/lists`,
     { per_page: 100 },
+  )
+}
+
+export function getOpenMergeRequests(config: GitlabConfig): Promise<GitlabMergeRequest[]> {
+  return gitlabFetch<GitlabMergeRequest[]>(
+    config,
+    `/projects/${projectIdParam(config.projectPath)}/merge_requests`,
+    { state: 'opened', order_by: 'updated_at', per_page: 100 },
   )
 }
