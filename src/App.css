@@ -58,7 +58,8 @@
   margin-bottom: 1.5rem;
 }
 
-.page-header h1 {
+.page-header h1,
+.page-header h2 {
   font-size: 1.4rem;
   margin: 0 0 0.25rem;
 }
@@ -323,4 +324,52 @@ select:focus {
   color: var(--text-secondary);
   font-size: 0.9rem;
   padding: 1rem 0;
+}
+
+.mr-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mr-item {
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.mr-item:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.mr-item__main {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.mr-item__main a {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.mr-item__main a:hover {
+  color: var(--series-actual);
+}
+
+.mr-item__badge {
+  font-size: 0.72rem;
+  padding: 0.1rem 0.5rem;
+  color: var(--text-muted);
+}
+
+.mr-item__meta {
+  margin-top: 0.2rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
 }

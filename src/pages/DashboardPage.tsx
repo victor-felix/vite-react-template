@@ -4,6 +4,7 @@ import { useConfig } from '../lib/config'
 import { GitlabApiError, getActiveMilestones } from '../lib/gitlabApi'
 import { isMilestoneInProgress } from '../lib/burndown'
 import { MilestoneCard } from '../components/MilestoneCard'
+import { OpenMergeRequests } from '../components/OpenMergeRequests'
 import type { GitlabMilestone } from '../types/gitlab'
 
 export function DashboardPage() {
@@ -49,10 +50,16 @@ export function DashboardPage() {
   return (
     <>
       <div className="page-header">
-        <h1>Relatório de burndown</h1>
+        <h1>Relatório do projeto</h1>
+        <p>{config.projectPath}</p>
+      </div>
+
+      <OpenMergeRequests config={config} />
+
+      <div className="page-header" style={{ marginTop: '2rem' }}>
+        <h2>Burndown das milestones em andamento</h2>
         <p>
-          Milestones em andamento em {config.projectPath}, com base na(s) coluna(s) "
-          {config.doneLabels.join('", "')}".
+          Com base na(s) coluna(s) "{config.doneLabels.join('", "')}".
         </p>
       </div>
 
