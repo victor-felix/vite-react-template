@@ -13,7 +13,6 @@ interface ChartRow {
   fullTitle: string
   delivered: number
   total: number
-  hasPoints: boolean
 }
 
 function VelocityTooltip({ active, payload }: { active?: boolean; payload?: { payload: ChartRow }[] }) {
@@ -32,7 +31,7 @@ function VelocityTooltip({ active, payload }: { active?: boolean; payload?: { pa
     >
       <div style={{ marginBottom: 4 }}>{row.fullTitle}</div>
       <strong>
-        {row.delivered} de {row.total} {row.hasPoints ? 'pontos' : 'tarefas'}
+        {row.delivered} de {row.total} pontos
       </strong>
     </div>
   )
@@ -42,8 +41,13 @@ export function VelocityHistory({ config }: { config: GitlabConfig }) {
   const [velocities, setVelocities] = useState<SprintVelocity[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const pointsConfigured = Boolean(config.pointLabelPrefix.trim())
 
   useEffect(() => {
+    if (!pointsConfigured) {
+      setLoading(false)
+      return
+    }
     let cancelled = false
     setLoading(true)
     setError(null)
@@ -62,33 +66,38 @@ export function VelocityHistory({ config }: { config: GitlabConfig }) {
     return () => {
       cancelled = true
     }
-  }, [config])
+  }, [config, pointsConfigured])
 
-  const showPoints = velocities?.some((v) => v.hasPoints) ?? false
   const rows: ChartRow[] =
     velocities?.map((v) => ({
       milestone: shortenTitle(v.milestone.title),
       fullTitle: v.milestone.title,
-      delivered: showPoints ? v.completedPoints : v.completedIssues,
-      total: showPoints ? v.totalPoints : v.totalIssues,
-      hasPoints: showPoints,
+      delivered: v.completedPoints,
+      total: v.totalPoints,
     })) ?? []
 
   return (
     <section className="card">
       <div className="milestone-header">
         <h2>Histórico de velocidade</h2>
-        <span className="milestone-meta">últimas sprints encerradas</span>
+        <span className="milestone-meta">pontos entregues por sprint encerrada</span>
       </div>
 
-      {loading && <div className="spinner-row">Carregando histórico…</div>}
-      {error && <div className="banner banner-error">{error}</div>}
+      {!pointsConfigured && (
+        <p className="milestone-meta">
+          Configure o prefixo da label de pontuação nas Configurações para ver o histórico de
+          velocidade.
+        </p>
+      )}
 
-      {!loading && !error && rows.length === 0 && (
+      {pointsConfigured && loading && <div className="spinner-row">Carregando histórico…</div>}
+      {pointsConfigured && error && <div className="banner banner-error">{error}</div>}
+
+      {pointsConfigured && !loading && !error && rows.length === 0 && (
         <p className="milestone-meta">Nenhuma milestone encerrada neste projeto ainda.</p>
       )}
 
-      {!loading && !error && rows.length > 0 && (
+      {pointsConfigured && !loading && !error && rows.length > 0 && (
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
             <CartesianGrid stroke="var(--gridline)" vertical={false} />
