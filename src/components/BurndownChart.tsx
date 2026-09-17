@@ -24,10 +24,12 @@ function BurndownTooltip({
   active,
   payload,
   label,
+  idealKey,
 }: {
   active?: boolean
   payload?: TooltipPayloadItem[]
   label?: string
+  idealKey: string
 }) {
   if (!active || !payload || payload.length === 0) return null
   return (
@@ -54,7 +56,7 @@ function BurndownTooltip({
                 display: 'inline-block',
               }}
             />
-            <span>{item.dataKey === 'actual' ? 'Real' : 'Ideal'}:</span>
+            <span>{item.dataKey === idealKey ? 'Ideal' : 'Real'}:</span>
             <strong>{item.value}</strong>
           </div>
         ),
@@ -63,13 +65,25 @@ function BurndownTooltip({
   )
 }
 
-export function BurndownChart({ points, hasDueDate }: { points: BurndownPoint[]; hasDueDate: boolean }) {
+export function BurndownChart({
+  points,
+  hasDueDate,
+  mode = 'issues',
+}: {
+  points: BurndownPoint[]
+  hasDueDate: boolean
+  mode?: 'points' | 'issues'
+}) {
+  const actualKey = mode === 'points' ? 'actualPoints' : 'actualIssues'
+  const idealKey = mode === 'points' ? 'idealPoints' : 'idealIssues'
+  const unitLabel = mode === 'points' ? 'pontos restantes' : 'tarefas restantes'
+
   return (
     <div>
       <div className="chart-legend">
         <span>
           <span className="swatch" style={{ background: 'var(--series-actual)' }} />
-          Real (tarefas restantes)
+          Real ({unitLabel})
         </span>
         {hasDueDate && (
           <span>
@@ -100,11 +114,11 @@ export function BurndownChart({ points, hasDueDate }: { points: BurndownPoint[];
             tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
             width={36}
           />
-          <Tooltip content={<BurndownTooltip />} />
+          <Tooltip content={<BurndownTooltip idealKey={idealKey} />} />
           {hasDueDate && (
             <Line
               type="monotone"
-              dataKey="ideal"
+              dataKey={idealKey}
               stroke="var(--series-ideal)"
               strokeWidth={2}
               strokeDasharray="4 4"
@@ -115,7 +129,7 @@ export function BurndownChart({ points, hasDueDate }: { points: BurndownPoint[];
           )}
           <Line
             type="monotone"
-            dataKey="actual"
+            dataKey={actualKey}
             stroke="var(--series-actual)"
             strokeWidth={2}
             dot={false}

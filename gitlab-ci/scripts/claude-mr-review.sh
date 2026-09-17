@@ -9,14 +9,36 @@ if [ -z "${ANTHROPIC_API_KEY:-}" ] || [ -z "${GITLAB_REVIEW_TOKEN:-}" ]; then
   exit 1
 fi
 
-API="$CI_API_V4_URL/projects/$CI_PROJECT_ID/merge_requests/$CI_MERGE_REQUEST_IID"
+PROJECT_API="$CI_API_V4_URL/projects/$CI_PROJECT_ID"
+
+# Funciona tanto em pipelines de merge request nativas (onde CI_MERGE_REQUEST_IID
+# já vem definido) quanto em pipelines clássicas de branch (only/except): nesse
+# segundo caso, resolve o MR aberto para a branch atual via API.
+MERGE_REQUEST_IID="${CI_MERGE_REQUEST_IID:-}"
+if [ -z "$MERGE_REQUEST_IID" ]; then
+  BRANCH_ENCODED=$(printf '%s' "$CI_COMMIT_BRANCH" | jq -sRr @uri)
+  MERGE_REQUEST_IID=$(curl -sf --header "PRIVATE-TOKEN: $GITLAB_REVIEW_TOKEN" \
+    "$PROJECT_API/merge_requests?source_branch=${BRANCH_ENCODED}&state=opened&order_by=updated_at&per_page=1" \
+    | jq -r '.[0].iid // empty')
+fi
+
+if [ -z "$MERGE_REQUEST_IID" ]; then
+  echo "Nenhum merge request aberto para a branch '${CI_COMMIT_BRANCH:-desconhecida}' — nada para revisar."
+  exit 0
+fi
+
+API="$PROJECT_API/merge_requests/$MERGE_REQUEST_IID"
 
 MR_JSON=$(curl -sf --header "PRIVATE-TOKEN: $GITLAB_REVIEW_TOKEN" "$API")
 IS_DRAFT=$(echo "$MR_JSON" | jq -r '.draft // .work_in_progress')
 if [ "$IS_DRAFT" = "true" ]; then
-  echo "MR em rascunho, pulando revisão automática."
+  echo "MR !$MERGE_REQUEST_IID em rascunho, pulando revisão automática."
   exit 0
 fi
+
+MR_TITLE=$(echo "$MR_JSON" | jq -r '.title')
+MR_SOURCE_BRANCH=$(echo "$MR_JSON" | jq -r '.source_branch')
+MR_TARGET_BRANCH=$(echo "$MR_JSON" | jq -r '.target_branch')
 
 # Usa a API de diffs do próprio GitLab em vez de "git diff" local: evita
 # problemas de clone raso e funciona igual em qualquer pipeline de MR.
@@ -38,8 +60,8 @@ fi
 PROMPT_FILE=/tmp/prompt.txt
 cat > "$PROMPT_FILE" <<PROMPT
 Você é um revisor de código sênior. Revise o diff abaixo do merge request
-!$CI_MERGE_REQUEST_IID ("$CI_MERGE_REQUEST_TITLE"), de
-$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME para $CI_MERGE_REQUEST_TARGET_BRANCH_NAME.
+!$MERGE_REQUEST_IID ("$MR_TITLE"), de
+$MR_SOURCE_BRANCH para $MR_TARGET_BRANCH.
 
 Aponte apenas problemas reais e de alta confiança:
 - bugs e condições de erro (entradas/estados que quebram o código)

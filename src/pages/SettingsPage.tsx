@@ -1,8 +1,16 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useConfig } from '../lib/config'
-import { GitlabApiError, getBoardLists, getBoards, getProject } from '../lib/gitlabApi'
-import type { GitlabBoard, GitlabBoardList } from '../types/gitlab'
+import {
+  GitlabApiError,
+  createLabel,
+  getBoardLists,
+  getBoards,
+  getProject,
+  getProjectLabels,
+} from '../lib/gitlabApi'
+import { FIBONACCI_LABEL_COLORS, FIBONACCI_SCALE, pointLabelName } from '../lib/points'
+import type { GitlabBoard, GitlabBoardList, GitlabLabel } from '../types/gitlab'
 
 export function SettingsPage() {
   const { config, setConfig, resetConfig } = useConfig()
@@ -13,6 +21,9 @@ export function SettingsPage() {
   const [projectPath, setProjectPath] = useState(config?.projectPath ?? '')
   const [doneLabels, setDoneLabels] = useState<string[]>(config?.doneLabels ?? [])
   const [doneLabelInput, setDoneLabelInput] = useState('')
+  const [excludeLabels, setExcludeLabels] = useState<string[]>(config?.excludeLabels ?? [])
+  const [excludeLabelInput, setExcludeLabelInput] = useState('')
+  const [pointLabelPrefix, setPointLabelPrefix] = useState(config?.pointLabelPrefix ?? 'point::')
 
   const [loadingBoards, setLoadingBoards] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -20,6 +31,8 @@ export function SettingsPage() {
   const [boards, setBoards] = useState<GitlabBoard[]>([])
   const [selectedBoardId, setSelectedBoardId] = useState<number | null>(null)
   const [lists, setLists] = useState<GitlabBoardList[]>([])
+  const [allLabels, setAllLabels] = useState<GitlabLabel[]>([])
+  const [creatingLabels, setCreatingLabels] = useState(false)
   const [saved, setSaved] = useState(false)
 
   function addDoneLabel(value: string) {
@@ -33,8 +46,23 @@ export function SettingsPage() {
     setDoneLabels((prev) => prev.filter((l) => l !== name))
   }
 
+  function addExcludeLabel(value: string) {
+    const name = value.trim()
+    if (!name) return
+    setExcludeLabels((prev) => (prev.includes(name) ? prev : [...prev, name]))
+    setExcludeLabelInput('')
+  }
+
+  function removeExcludeLabel(name: string) {
+    setExcludeLabels((prev) => prev.filter((l) => l !== name))
+  }
+
+  function currentConfigDraft() {
+    return { baseUrl, token, projectPath, doneLabels, excludeLabels, pointLabelPrefix }
+  }
+
   async function loadBoardLists(boardId: number) {
-    const boardLists = await getBoardLists({ baseUrl, token, projectPath, doneLabels }, boardId)
+    const boardLists = await getBoardLists(currentConfigDraft(), boardId)
     setLists(boardLists.filter((l) => l.label))
   }
 
@@ -47,11 +75,13 @@ export function SettingsPage() {
     }
     setLoadingBoards(true)
     try {
-      const cfg = { baseUrl, token, projectPath, doneLabels }
+      const cfg = currentConfigDraft()
       const project = await getProject(cfg)
       setProjectName(project.name_with_namespace)
-      const projectBoards = await getBoards(cfg)
+
+      const [projectBoards, projectLabels] = await Promise.all([getBoards(cfg), getProjectLabels(cfg)])
       setBoards(projectBoards)
+      setAllLabels(projectLabels)
       if (projectBoards.length > 0) {
         setSelectedBoardId(projectBoards[0].id)
         await loadBoardLists(projectBoards[0].id)
@@ -62,6 +92,7 @@ export function SettingsPage() {
       setProjectName(null)
       setBoards([])
       setLists([])
+      setAllLabels([])
       setError(err instanceof GitlabApiError ? err.message : 'Erro inesperado ao conectar no GitLab.')
     } finally {
       setLoadingBoards(false)
@@ -78,6 +109,27 @@ export function SettingsPage() {
     }
   }
 
+  async function handleCreateMissingPointLabels() {
+    setError(null)
+    setCreatingLabels(true)
+    try {
+      const cfg = currentConfigDraft()
+      const missing = FIBONACCI_SCALE.filter(
+        (value) => !allLabels.some((l) => l.name === pointLabelName(pointLabelPrefix, value)),
+      )
+      const created = await Promise.all(
+        missing.map((value) =>
+          createLabel(cfg, pointLabelName(pointLabelPrefix, value), FIBONACCI_LABEL_COLORS[value] ?? '#3987e5'),
+        ),
+      )
+      setAllLabels((prev) => [...prev, ...created])
+    } catch (err) {
+      setError(err instanceof GitlabApiError ? err.message : 'Erro ao criar as labels de pontuação.')
+    } finally {
+      setCreatingLabels(false)
+    }
+  }
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
@@ -90,6 +142,8 @@ export function SettingsPage() {
       token: token.trim(),
       projectPath: projectPath.trim(),
       doneLabels,
+      excludeLabels,
+      pointLabelPrefix: pointLabelPrefix.trim(),
     })
     setSaved(true)
     navigate('/')
@@ -102,11 +156,19 @@ export function SettingsPage() {
     setProjectPath('')
     setDoneLabels([])
     setDoneLabelInput('')
+    setExcludeLabels([])
+    setExcludeLabelInput('')
+    setPointLabelPrefix('point::')
     setProjectName(null)
     setBoards([])
     setLists([])
+    setAllLabels([])
     setSaved(false)
   }
+
+  const missingPointLabels = FIBONACCI_SCALE.filter(
+    (value) => !allLabels.some((l) => l.name === pointLabelName(pointLabelPrefix, value)),
+  )
 
   return (
     <>
@@ -148,7 +210,10 @@ export function SettingsPage() {
             autoComplete="off"
             required
           />
-          <span className="hint">Precisa do escopo "read_api" (ou "api").</span>
+          <span className="hint">
+            Precisa do escopo "api" (não só "read_api") se você quiser usar o botão de criar labels
+            de pontuação abaixo. Só leitura funciona com "read_api".
+          </span>
         </div>
 
         <div className="form-field">
@@ -165,7 +230,7 @@ export function SettingsPage() {
 
         <div className="actions-row" style={{ marginTop: 0, marginBottom: '1.1rem' }}>
           <button type="button" className="btn" onClick={handleLoadBoards} disabled={loadingBoards}>
-            {loadingBoards ? 'Carregando...' : 'Carregar quadros do projeto'}
+            {loadingBoards ? 'Carregando...' : 'Carregar quadros e labels do projeto'}
           </button>
         </div>
 
@@ -262,6 +327,122 @@ export function SettingsPage() {
               : 'Digite o nome exato de cada label/coluna que indica conclusão. Carregue os quadros acima para ver sugestões.'}
           </span>
         </div>
+
+        <div className="form-field">
+          <label htmlFor="excludeLabel">Ignorar tarefas com estas labels</label>
+
+          {excludeLabels.length > 0 && (
+            <div className="tag-list">
+              {excludeLabels.map((name) => (
+                <span key={name} className="tag">
+                  {name}
+                  <button
+                    type="button"
+                    className="tag-remove"
+                    aria-label={`Remover exclusão ${name}`}
+                    onClick={() => removeExcludeLabel(name)}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className="form-row">
+            <input
+              id="excludeLabel"
+              type="text"
+              list="all-labels"
+              placeholder="Epic"
+              value={excludeLabelInput}
+              onChange={(e) => setExcludeLabelInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  addExcludeLabel(excludeLabelInput)
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="btn"
+              style={{ flex: '0 0 auto' }}
+              onClick={() => addExcludeLabel(excludeLabelInput)}
+            >
+              Adicionar
+            </button>
+          </div>
+          <datalist id="all-labels">
+            {allLabels
+              .filter((l) => !excludeLabels.includes(l.name))
+              .map((l) => (
+                <option key={l.id} value={l.name} />
+              ))}
+          </datalist>
+
+          <span className="hint">
+            Tarefas com qualquer uma dessas labels (ex.: "Epic") não entram nos gráficos de
+            burndown nem nos indicadores de pontuação.
+          </span>
+        </div>
+
+        <div className="form-field">
+          <label htmlFor="pointLabelPrefix">Prefixo da label de pontuação</label>
+          <input
+            id="pointLabelPrefix"
+            type="text"
+            placeholder="point::"
+            value={pointLabelPrefix}
+            onChange={(e) => setPointLabelPrefix(e.target.value)}
+          />
+          <span className="hint">
+            Tarefas com uma label "{pointLabelPrefix || 'point::'}N" (ex.: "{pointLabelPrefix || 'point::'}
+            3") contam N pontos no burndown por pontuação. Deixe em branco para desativar e usar
+            contagem de tarefas.
+          </span>
+        </div>
+
+        {pointLabelPrefix.trim() && (
+          <div className="form-field">
+            <label>Labels de pontuação recomendadas (escala Fibonacci)</label>
+            <div className="point-scale-list">
+              {FIBONACCI_SCALE.map((value) => {
+                const name = pointLabelName(pointLabelPrefix, value)
+                const exists = allLabels.some((l) => l.name === name)
+                return (
+                  <span key={value} className={`point-scale-chip${exists ? ' point-scale-chip--ok' : ''}`}>
+                    <span
+                      className="point-scale-swatch"
+                      style={{ background: FIBONACCI_LABEL_COLORS[value] ?? 'var(--series-actual)' }}
+                    />
+                    {name}
+                    <span className="point-scale-status">{exists ? '✓' : '—'}</span>
+                  </span>
+                )
+              })}
+            </div>
+            <span className="hint">
+              {allLabels.length === 0
+                ? 'Carregue os quadros e labels do projeto acima para ver quais já existem.'
+                : missingPointLabels.length === 0
+                  ? 'Todas as labels da escala já existem no projeto.'
+                  : `Faltam ${missingPointLabels.length} label(s). Essas labels usam a sintaxe de "scoped labels" do GitLab (prefixo::valor), então cada tarefa só recebe uma pontuação por vez.`}
+            </span>
+            {allLabels.length > 0 && missingPointLabels.length > 0 && (
+              <div className="actions-row" style={{ marginTop: '0.6rem' }}>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={handleCreateMissingPointLabels}
+                  disabled={creatingLabels}
+                >
+                  {creatingLabels ? 'Criando...' : `Criar ${missingPointLabels.length} label(s) que faltam`}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="actions-row">
           <button type="submit" className="btn btn-primary">

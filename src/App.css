@@ -373,3 +373,44 @@ select:focus {
   font-size: 0.82rem;
   color: var(--text-muted);
 }
+
+.point-scale-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.point-scale-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  padding: 0.25rem 0.6rem;
+}
+
+.point-scale-chip--ok {
+  color: var(--text-primary);
+  border-color: var(--status-good);
+}
+
+.point-scale-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+.point-scale-status {
+  color: var(--status-good);
+  font-weight: 700;
+}
+
+.point-scale-chip:not(.point-scale-chip--ok) .point-scale-status {
+  color: var(--text-muted);
+}

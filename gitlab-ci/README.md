@@ -37,8 +37,12 @@ gitlab-ci/
 
 ## Como funciona
 
-1. O job só roda em pipelines de merge request
-   (`rules: $CI_PIPELINE_SOURCE == "merge_request_event"`).
+1. O `.gitlab-ci.yml` de exemplo usa `rules: $CI_PIPELINE_SOURCE == "merge_request_event"`
+   (pipelines nativas de merge request). Se o seu projeto usa pipelines
+   clássicas de branch (`only:`/`except:`, sem `rules:`), rode o job assim
+   mesmo — o script detecta que `$CI_MERGE_REQUEST_IID` não existe e resolve
+   o MR aberto para a branch atual via API (`GET /merge_requests?source_branch=...`).
+   Se não houver MR aberto para a branch, o job só encerra sem fazer nada.
 2. `claude-mr-review.sh`:
    - consulta a API do GitLab para saber se o MR está em rascunho — se sim,
      encerra sem fazer nada;

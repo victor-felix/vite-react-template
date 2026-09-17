@@ -9,6 +9,10 @@ function formatDate(iso: string | null): string {
   return new Date(`${iso}T00:00:00Z`).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
 }
 
+function todayDateOnly(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
 export function MilestoneCard({ config, milestone }: { config: GitlabConfig; milestone: GitlabMilestone }) {
   const [burndown, setBurndown] = useState<MilestoneBurndown | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -36,10 +40,16 @@ export function MilestoneCard({ config, milestone }: { config: GitlabConfig; mil
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config, milestone.id])
 
+  const hasPoints = burndown?.hasPoints ?? false
   const percentDone =
-    burndown && burndown.totalIssues > 0
-      ? Math.round((burndown.completedIssues / burndown.totalIssues) * 100)
+    burndown && (hasPoints ? burndown.totalPoints > 0 : burndown.totalIssues > 0)
+      ? Math.round(
+          ((hasPoints ? burndown.completedPoints : burndown.completedIssues) /
+            (hasPoints ? burndown.totalPoints : burndown.totalIssues)) *
+            100,
+        )
       : 0
+  const idealToday = burndown?.points.find((p) => p.date === todayDateOnly())?.idealPoints ?? null
 
   return (
     <section className="card milestone-card">
@@ -64,28 +74,61 @@ export function MilestoneCard({ config, milestone }: { config: GitlabConfig; mil
       {!loading && !error && burndown && burndown.totalIssues > 0 && (
         <>
           <div className="milestone-stats">
-            <div className="stat">
-              <span className="value">{burndown.totalIssues}</span>
-              <span className="label">Tarefas</span>
-            </div>
-            <div className="stat">
-              <span className="value">{burndown.completedIssues}</span>
-              <span className="label">Finalizadas</span>
-            </div>
-            <div className="stat">
-              <span className="value">{percentDone}%</span>
-              <span className="label">Concluído</span>
-            </div>
+            {hasPoints ? (
+              <>
+                <div className="stat">
+                  <span className="value">{burndown.totalPoints}</span>
+                  <span className="label">Pontuação total</span>
+                </div>
+                <div className="stat">
+                  <span className="value">{burndown.completedPoints}</span>
+                  <span className="label">Pontos entregues</span>
+                </div>
+                <div className="stat">
+                  <span className="value">{idealToday ?? '—'}</span>
+                  <span className="label">Ideal hoje</span>
+                </div>
+                <div className="stat">
+                  <span className="value">{percentDone}%</span>
+                  <span className="label">Concluído</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="stat">
+                  <span className="value">{burndown.totalIssues}</span>
+                  <span className="label">Tarefas</span>
+                </div>
+                <div className="stat">
+                  <span className="value">{burndown.completedIssues}</span>
+                  <span className="label">Finalizadas</span>
+                </div>
+                <div className="stat">
+                  <span className="value">{percentDone}%</span>
+                  <span className="label">Concluído</span>
+                </div>
+              </>
+            )}
           </div>
           <div className="progress-track">
             <div className="progress-fill" style={{ width: `${percentDone}%` }} />
           </div>
+          {hasPoints && burndown.issuesWithoutPoints > 0 && (
+            <p className="hint" style={{ marginBottom: '0.75rem', display: 'block' }}>
+              {burndown.issuesWithoutPoints} tarefa(s) sem label de pontuação não entram no total de
+              pontos.
+            </p>
+          )}
           {!burndown.hasDueDate && (
             <p className="hint" style={{ marginBottom: '0.75rem', display: 'block' }}>
               Esta milestone não tem data de término definida, então a linha ideal não é exibida.
             </p>
           )}
-          <BurndownChart points={burndown.points} hasDueDate={burndown.hasDueDate} />
+          <BurndownChart
+            points={burndown.points}
+            hasDueDate={burndown.hasDueDate}
+            mode={hasPoints ? 'points' : 'issues'}
+          />
         </>
       )}
     </section>
