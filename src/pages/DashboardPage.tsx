@@ -5,6 +5,7 @@ import { GitlabApiError, getActiveMilestones } from '../lib/gitlabApi'
 import { isMilestoneInProgress } from '../lib/burndown'
 import { MilestoneCard } from '../components/MilestoneCard'
 import { OpenMergeRequests } from '../components/OpenMergeRequests'
+import { VelocityHistory } from '../components/VelocityHistory'
 import type { GitlabMilestone } from '../types/gitlab'
 
 export function DashboardPage() {
@@ -75,6 +76,13 @@ export function DashboardPage() {
       {milestones?.map((milestone) => (
         <MilestoneCard key={milestone.id} config={config} milestone={milestone} />
       ))}
+
+      <div className="page-header" style={{ marginTop: '2rem' }}>
+        <h2>Sprints anteriores</h2>
+        <p>Pontos (ou tarefas) entregues em cada milestone encerrada.</p>
+      </div>
+
+      <VelocityHistory config={config} />
     </>
   )
 }

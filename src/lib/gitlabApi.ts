@@ -3,6 +3,7 @@ import type {
   GitlabBoardList,
   GitlabConfig,
   GitlabIssue,
+  GitlabLabel,
   GitlabMergeRequest,
   GitlabMilestone,
   GitlabProject,
@@ -27,6 +28,7 @@ async function gitlabFetch<T>(
   config: Pick<GitlabConfig, 'baseUrl' | 'token'>,
   path: string,
   params: Record<string, string | number | undefined> = {},
+  init: { method?: string; body?: unknown } = {},
 ): Promise<T> {
   const url = new URL(`${normalizeBaseUrl(config.baseUrl)}/api/v4${path}`)
   for (const [key, value] of Object.entries(params)) {
@@ -36,7 +38,12 @@ async function gitlabFetch<T>(
   let response: Response
   try {
     response = await fetch(url.toString(), {
-      headers: { 'PRIVATE-TOKEN': config.token },
+      method: init.method,
+      headers: {
+        'PRIVATE-TOKEN': config.token,
+        ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      },
+      body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
     })
   } catch {
     throw new GitlabApiError(
@@ -119,5 +126,28 @@ export function getOpenMergeRequests(config: GitlabConfig): Promise<GitlabMergeR
     config,
     `/projects/${projectIdParam(config.projectPath)}/merge_requests`,
     { state: 'opened', order_by: 'updated_at', per_page: 100 },
+  )
+}
+
+export function getClosedMilestones(config: GitlabConfig): Promise<GitlabMilestone[]> {
+  return gitlabFetch<GitlabMilestone[]>(
+    config,
+    `/projects/${projectIdParam(config.projectPath)}/milestones`,
+    { state: 'closed', order_by: 'due_date', sort: 'desc', per_page: 100 },
+  )
+}
+
+export function getProjectLabels(config: GitlabConfig): Promise<GitlabLabel[]> {
+  return gitlabFetch<GitlabLabel[]>(config, `/projects/${projectIdParam(config.projectPath)}/labels`, {
+    per_page: 100,
+  })
+}
+
+export function createLabel(config: GitlabConfig, name: string, color: string): Promise<GitlabLabel> {
+  return gitlabFetch<GitlabLabel>(
+    config,
+    `/projects/${projectIdParam(config.projectPath)}/labels`,
+    {},
+    { method: 'POST', body: { name, color } },
   )
 }

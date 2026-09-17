@@ -17,7 +17,11 @@ export function loadConfig(): GitlabConfig | null {
     ) {
       return null
     }
-    return parsed as GitlabConfig
+    return {
+      ...parsed,
+      excludeLabels: parsed.excludeLabels ?? [],
+      pointLabelPrefix: parsed.pointLabelPrefix ?? 'point::',
+    } as GitlabConfig
   } catch {
     return null
   }

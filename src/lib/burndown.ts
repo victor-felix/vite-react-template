@@ -1,16 +1,23 @@
 import { getIssueResourceLabelEvents, getMilestoneIssues } from './gitlabApi'
-import type { GitlabConfig, GitlabMilestone } from '../types/gitlab'
+import { filterExcludedIssues, getIssuePoints } from './points'
+import type { GitlabConfig, GitlabIssue, GitlabMilestone } from '../types/gitlab'
 
 export interface BurndownPoint {
   date: string
-  ideal: number | null
-  actual: number | null
+  idealIssues: number | null
+  actualIssues: number | null
+  idealPoints: number | null
+  actualPoints: number | null
 }
 
 export interface MilestoneBurndown {
   milestone: GitlabMilestone
   totalIssues: number
   completedIssues: number
+  totalPoints: number
+  completedPoints: number
+  issuesWithoutPoints: number
+  hasPoints: boolean
   points: BurndownPoint[]
   hasDueDate: boolean
 }
@@ -47,19 +54,16 @@ export function isMilestoneInProgress(milestone: GitlabMilestone, referenceDate 
   return true
 }
 
-export async function computeMilestoneBurndown(
+// Resolve, para cada issue, a data em que ela entrou em alguma das colunas
+// "finalizado" configuradas (a mais antiga, se ela passou por mais de uma).
+// Cai para closed_at quando não há esse histórico (ex.: token sem permissão
+// para eventos de label, ou issue fechada sem nunca ter passado pela coluna).
+// Compartilhado entre o burndown da milestone ativa e o histórico de velocidade.
+export async function resolveCompletionDates(
   config: GitlabConfig,
-  milestone: GitlabMilestone,
-): Promise<MilestoneBurndown> {
-  const issues = await getMilestoneIssues(config, milestone.id)
-  const totalIssues = issues.length
-  const hasDueDate = Boolean(milestone.due_date)
-
-  if (totalIssues === 0) {
-    return { milestone, totalIssues: 0, completedIssues: 0, points: [], hasDueDate }
-  }
-
-  const completionDates = await Promise.all(
+  issues: GitlabIssue[],
+): Promise<(Date | null)[]> {
+  return Promise.all(
     issues.map(async (issue): Promise<Date | null> => {
       try {
         const events = await getIssueResourceLabelEvents(config, issue.iid)
@@ -75,6 +79,37 @@ export async function computeMilestoneBurndown(
       return null
     }),
   )
+}
+
+export async function computeMilestoneBurndown(
+  config: GitlabConfig,
+  milestone: GitlabMilestone,
+): Promise<MilestoneBurndown> {
+  const allIssues = await getMilestoneIssues(config, milestone.id)
+  const issues = filterExcludedIssues(allIssues, config.excludeLabels)
+  const totalIssues = issues.length
+  const hasDueDate = Boolean(milestone.due_date)
+
+  if (totalIssues === 0) {
+    return {
+      milestone,
+      totalIssues: 0,
+      completedIssues: 0,
+      totalPoints: 0,
+      completedPoints: 0,
+      issuesWithoutPoints: 0,
+      hasPoints: false,
+      points: [],
+      hasDueDate,
+    }
+  }
+
+  const issuePoints = issues.map((issue) => getIssuePoints(issue, config.pointLabelPrefix))
+  const hasPoints = issuePoints.some((p) => p !== null)
+  const issuesWithoutPoints = issuePoints.filter((p) => p === null).length
+  const totalPoints = issuePoints.reduce((sum: number, p) => sum + (p ?? 0), 0)
+
+  const completionDates = await resolveCompletionDates(config, issues)
 
   const today = toDateOnly(new Date())
   const earliestCreated = issues.reduce(
@@ -94,25 +129,45 @@ export async function computeMilestoneBurndown(
 
   for (let d = start; d.getTime() <= chartEnd.getTime(); d = addDays(d, 1)) {
     const dayEnd = addDays(d, 1)
-    const completedByDay = completionDates.filter(
-      (c) => c !== null && c.getTime() < dayEnd.getTime(),
-    ).length
-    const actual = d.getTime() <= today.getTime() ? totalIssues - completedByDay : null
+    const completedIndexesByDay = completionDates
+      .map((c, index) => (c !== null && c.getTime() < dayEnd.getTime() ? index : -1))
+      .filter((index) => index !== -1)
+    const completedCountByDay = completedIndexesByDay.length
+    const completedPointsByDay = completedIndexesByDay.reduce(
+      (sum, index) => sum + (issuePoints[index] ?? 0),
+      0,
+    )
 
-    let ideal: number | null = null
+    const isFuture = d.getTime() > today.getTime()
+    const actualIssues = isFuture ? null : totalIssues - completedCountByDay
+    const actualPoints = isFuture ? null : totalPoints - completedPointsByDay
+
+    let idealIssues: number | null = null
+    let idealPoints: number | null = null
     if (due) {
-      if (span <= 0) {
-        ideal = d.getTime() <= start.getTime() ? totalIssues : 0
-      } else {
-        const progress = Math.min(1, Math.max(0, (d.getTime() - start.getTime()) / span))
-        ideal = Math.round(totalIssues * (1 - progress) * 10) / 10
-      }
+      const progress = span <= 0 ? (d.getTime() <= start.getTime() ? 0 : 1) : Math.min(1, Math.max(0, (d.getTime() - start.getTime()) / span))
+      idealIssues = Math.round(totalIssues * (1 - progress) * 10) / 10
+      idealPoints = Math.round(totalPoints * (1 - progress) * 10) / 10
     }
 
-    points.push({ date: formatDateOnly(d), ideal, actual })
+    points.push({ date: formatDateOnly(d), idealIssues, actualIssues, idealPoints, actualPoints })
   }
 
   const completedIssues = completionDates.filter((c) => c !== null).length
+  const completedPoints = completionDates.reduce(
+    (sum, c, index) => sum + (c !== null ? (issuePoints[index] ?? 0) : 0),
+    0,
+  )
 
-  return { milestone, totalIssues, completedIssues, points, hasDueDate }
+  return {
+    milestone,
+    totalIssues,
+    completedIssues,
+    totalPoints,
+    completedPoints,
+    issuesWithoutPoints,
+    hasPoints,
+    points,
+    hasDueDate,
+  }
 }
