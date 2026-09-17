@@ -79,7 +79,7 @@ export function DashboardPage() {
 
       <div className="page-header" style={{ marginTop: '2rem' }}>
         <h2>Sprints anteriores</h2>
-        <p>Pontos (ou tarefas) entregues em cada milestone encerrada.</p>
+        <p>Pontos entregues em cada milestone encerrada.</p>
       </div>
 
       <VelocityHistory config={config} />
