@@ -21,6 +21,8 @@ export function SettingsPage() {
   const [projectPath, setProjectPath] = useState(config?.projectPath ?? '')
   const [doneLabels, setDoneLabels] = useState<string[]>(config?.doneLabels ?? [])
   const [doneLabelInput, setDoneLabelInput] = useState('')
+  const [inProgressLabels, setInProgressLabels] = useState<string[]>(config?.inProgressLabels ?? [])
+  const [inProgressLabelInput, setInProgressLabelInput] = useState('')
   const [excludeLabels, setExcludeLabels] = useState<string[]>(config?.excludeLabels ?? [])
   const [excludeLabelInput, setExcludeLabelInput] = useState('')
   const [pointLabelPrefix, setPointLabelPrefix] = useState(config?.pointLabelPrefix ?? 'point::')
@@ -46,6 +48,17 @@ export function SettingsPage() {
     setDoneLabels((prev) => prev.filter((l) => l !== name))
   }
 
+  function addInProgressLabel(value: string) {
+    const name = value.trim()
+    if (!name) return
+    setInProgressLabels((prev) => (prev.includes(name) ? prev : [...prev, name]))
+    setInProgressLabelInput('')
+  }
+
+  function removeInProgressLabel(name: string) {
+    setInProgressLabels((prev) => prev.filter((l) => l !== name))
+  }
+
   function addExcludeLabel(value: string) {
     const name = value.trim()
     if (!name) return
@@ -58,7 +71,7 @@ export function SettingsPage() {
   }
 
   function currentConfigDraft() {
-    return { baseUrl, token, projectPath, doneLabels, excludeLabels, pointLabelPrefix }
+    return { baseUrl, token, projectPath, doneLabels, inProgressLabels, excludeLabels, pointLabelPrefix }
   }
 
   async function loadBoardLists(boardId: number) {
@@ -142,6 +155,7 @@ export function SettingsPage() {
       token: token.trim(),
       projectPath: projectPath.trim(),
       doneLabels,
+      inProgressLabels,
       excludeLabels,
       pointLabelPrefix: pointLabelPrefix.trim(),
     })
@@ -156,6 +170,8 @@ export function SettingsPage() {
     setProjectPath('')
     setDoneLabels([])
     setDoneLabelInput('')
+    setInProgressLabels([])
+    setInProgressLabelInput('')
     setExcludeLabels([])
     setExcludeLabelInput('')
     setPointLabelPrefix('point::')
@@ -325,6 +341,84 @@ export function SettingsPage() {
             {lists.length > 0
               ? 'Clique nas colunas do quadro para adicioná-las, ou digite manualmente. Uma tarefa é considerada finalizada ao entrar em qualquer uma das colunas selecionadas.'
               : 'Digite o nome exato de cada label/coluna que indica conclusão. Carregue os quadros acima para ver sugestões.'}
+          </span>
+        </div>
+
+        <div className="form-field">
+          <label htmlFor="inProgressLabel">Colunas que representam "em andamento"</label>
+
+          {inProgressLabels.length > 0 && (
+            <div className="tag-list">
+              {inProgressLabels.map((name) => (
+                <span key={name} className="tag">
+                  {name}
+                  <button
+                    type="button"
+                    className="tag-remove"
+                    aria-label={`Remover coluna ${name}`}
+                    onClick={() => removeInProgressLabel(name)}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className="form-row">
+            <input
+              id="inProgressLabel"
+              type="text"
+              list="in-progress-columns"
+              placeholder="Doing"
+              value={inProgressLabelInput}
+              onChange={(e) => setInProgressLabelInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  addInProgressLabel(inProgressLabelInput)
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="btn"
+              style={{ flex: '0 0 auto' }}
+              onClick={() => addInProgressLabel(inProgressLabelInput)}
+            >
+              Adicionar
+            </button>
+          </div>
+          <datalist id="in-progress-columns">
+            {lists
+              .filter((l) => l.label && !inProgressLabels.includes(l.label.name))
+              .map((list) => (
+                <option key={list.id} value={list.label?.name ?? ''} />
+              ))}
+          </datalist>
+
+          {lists.length > 0 && (
+            <div className="tag-list">
+              {lists
+                .filter((l) => l.label && !inProgressLabels.includes(l.label.name))
+                .map((list) => (
+                  <button
+                    key={list.id}
+                    type="button"
+                    className="tag tag-suggestion"
+                    onClick={() => addInProgressLabel(list.label?.name ?? '')}
+                  >
+                    + {list.label?.name}
+                  </button>
+                ))}
+            </div>
+          )}
+
+          <span className="hint">
+            Usado só no gráfico de Gantt: a barra de cada tarefa começa quando ela entra em
+            qualquer uma dessas colunas (em vez da data de criação, que costuma ser bem anterior
+            ao início do trabalho de fato). Opcional — sem isso, a barra começa na data de início
+            da milestone.
           </span>
         </div>
 

@@ -130,10 +130,13 @@ export function getOpenMergeRequests(config: GitlabConfig): Promise<GitlabMergeR
 }
 
 export function getClosedMilestones(config: GitlabConfig): Promise<GitlabMilestone[]> {
+  // Sem order_by/sort: a API de milestones do GitLab não os documenta (ao
+  // contrário de issues/MRs), então a ordenação é feita no lado do cliente
+  // por quem consome esta lista.
   return gitlabFetch<GitlabMilestone[]>(
     config,
     `/projects/${projectIdParam(config.projectPath)}/milestones`,
-    { state: 'closed', order_by: 'due_date', sort: 'desc', per_page: 100 },
+    { state: 'closed', per_page: 100 },
   )
 }
 
