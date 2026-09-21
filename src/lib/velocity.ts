@@ -38,6 +38,21 @@ async function computeSprintVelocity(
 // ler como um gráfico de velocidade cronológico).
 export async function getSprintVelocityHistory(config: GitlabConfig): Promise<SprintVelocity[]> {
   const closedMilestones = await getClosedMilestones(config)
-  const recent = closedMilestones.slice(0, MAX_SPRINTS).reverse()
-  return Promise.all(recent.map((milestone) => computeSprintVelocity(config, milestone)))
+
+  // A API de milestones do GitLab não documenta order_by/sort (diferente de
+  // issues/MRs), então a ordem devolvida não é confiável — ordena aqui pela
+  // data de término (milestones sem due_date vão para o fim).
+  const sorted = [...closedMilestones].sort((a, b) => {
+    const aTime = a.due_date ? new Date(a.due_date).getTime() : -Infinity
+    const bTime = b.due_date ? new Date(b.due_date).getTime() : -Infinity
+    return bTime - aTime
+  })
+  const recent = sorted.slice(0, MAX_SPRINTS).reverse()
+
+  // Promise.allSettled: uma sprint com erro (permissão, milestone removida
+  // entre as duas chamadas, etc.) não pode derrubar o histórico inteiro.
+  const results = await Promise.allSettled(recent.map((milestone) => computeSprintVelocity(config, milestone)))
+  return results
+    .filter((r): r is PromiseFulfilledResult<SprintVelocity> => r.status === 'fulfilled')
+    .map((r) => r.value)
 }
