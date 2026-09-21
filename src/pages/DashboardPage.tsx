@@ -4,6 +4,7 @@ import { useConfig } from '../lib/config'
 import { GitlabApiError, getActiveMilestones } from '../lib/gitlabApi'
 import { isMilestoneInProgress } from '../lib/burndown'
 import { MilestoneCard } from '../components/MilestoneCard'
+import { MilestoneGanttCard } from '../components/MilestoneGanttCard'
 import { OpenMergeRequests } from '../components/OpenMergeRequests'
 import { VelocityHistory } from '../components/VelocityHistory'
 import type { GitlabMilestone } from '../types/gitlab'
@@ -75,6 +76,21 @@ export function DashboardPage() {
 
       {milestones?.map((milestone) => (
         <MilestoneCard key={milestone.id} config={config} milestone={milestone} />
+      ))}
+
+      {!loading && !error && milestones && milestones.length > 0 && (
+        <div className="page-header" style={{ marginTop: '2rem' }}>
+          <h2>Cronograma (Gantt)</h2>
+          <p>
+            Início inferido a partir de quando a tarefa entrou em alguma das colunas "em
+            andamento"{config.inProgressLabels.length > 0 ? ` "${config.inProgressLabels.join('", "')}"` : ''}
+            ; fim pela data de vencimento (ou de conclusão, na falta dela).
+          </p>
+        </div>
+      )}
+
+      {milestones?.map((milestone) => (
+        <MilestoneGanttCard key={milestone.id} config={config} milestone={milestone} />
       ))}
 
       <div className="page-header" style={{ marginTop: '2rem' }}>

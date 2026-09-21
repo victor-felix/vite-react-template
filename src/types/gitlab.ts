@@ -3,6 +3,7 @@ export interface GitlabConfig {
   token: string
   projectPath: string
   doneLabels: string[]
+  inProgressLabels: string[]
   excludeLabels: string[]
   pointLabelPrefix: string
 }
@@ -33,6 +34,7 @@ export interface GitlabIssue {
   state: 'opened' | 'closed'
   created_at: string
   closed_at: string | null
+  due_date: string | null
   weight: number | null
   labels: string[]
   web_url: string
