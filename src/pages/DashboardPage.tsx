@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useConfig } from '../lib/config'
 import { GitlabApiError, getActiveMilestones } from '../lib/gitlabApi'
 import { isMilestoneInProgress } from '../lib/burndown'
+import { BugStatusSummary } from '../components/BugStatusSummary'
 import { MilestoneCard } from '../components/MilestoneCard'
 import { MilestoneGanttCard } from '../components/MilestoneGanttCard'
 import { OpenMergeRequests } from '../components/OpenMergeRequests'
@@ -57,6 +58,8 @@ export function DashboardPage() {
       </div>
 
       <OpenMergeRequests config={config} />
+
+      <BugStatusSummary config={config} />
 
       <div className="page-header" style={{ marginTop: '2rem' }}>
         <h2>Burndown das milestones em andamento</h2>

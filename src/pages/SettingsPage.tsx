@@ -26,6 +26,11 @@ export function SettingsPage() {
   const [excludeLabels, setExcludeLabels] = useState<string[]>(config?.excludeLabels ?? [])
   const [excludeLabelInput, setExcludeLabelInput] = useState('')
   const [pointLabelPrefix, setPointLabelPrefix] = useState(config?.pointLabelPrefix ?? 'point::')
+  const [bugLabel, setBugLabel] = useState(config?.bugLabel ?? 'Bug')
+  const [reviewLabels, setReviewLabels] = useState<string[]>(config?.reviewLabels ?? [])
+  const [reviewLabelInput, setReviewLabelInput] = useState('')
+  const [testLabels, setTestLabels] = useState<string[]>(config?.testLabels ?? [])
+  const [testLabelInput, setTestLabelInput] = useState('')
 
   const [loadingBoards, setLoadingBoards] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -70,8 +75,41 @@ export function SettingsPage() {
     setExcludeLabels((prev) => prev.filter((l) => l !== name))
   }
 
+  function addReviewLabel(value: string) {
+    const name = value.trim()
+    if (!name) return
+    setReviewLabels((prev) => (prev.includes(name) ? prev : [...prev, name]))
+    setReviewLabelInput('')
+  }
+
+  function removeReviewLabel(name: string) {
+    setReviewLabels((prev) => prev.filter((l) => l !== name))
+  }
+
+  function addTestLabel(value: string) {
+    const name = value.trim()
+    if (!name) return
+    setTestLabels((prev) => (prev.includes(name) ? prev : [...prev, name]))
+    setTestLabelInput('')
+  }
+
+  function removeTestLabel(name: string) {
+    setTestLabels((prev) => prev.filter((l) => l !== name))
+  }
+
   function currentConfigDraft() {
-    return { baseUrl, token, projectPath, doneLabels, inProgressLabels, excludeLabels, pointLabelPrefix }
+    return {
+      baseUrl,
+      token,
+      projectPath,
+      doneLabels,
+      inProgressLabels,
+      excludeLabels,
+      pointLabelPrefix,
+      bugLabel,
+      reviewLabels,
+      testLabels,
+    }
   }
 
   async function loadBoardLists(boardId: number) {
@@ -158,6 +196,9 @@ export function SettingsPage() {
       inProgressLabels,
       excludeLabels,
       pointLabelPrefix: pointLabelPrefix.trim(),
+      bugLabel: bugLabel.trim(),
+      reviewLabels,
+      testLabels,
     })
     setSaved(true)
     navigate('/')
@@ -175,6 +216,11 @@ export function SettingsPage() {
     setExcludeLabels([])
     setExcludeLabelInput('')
     setPointLabelPrefix('point::')
+    setBugLabel('Bug')
+    setReviewLabels([])
+    setReviewLabelInput('')
+    setTestLabels([])
+    setTestLabelInput('')
     setProjectName(null)
     setBoards([])
     setLists([])
@@ -537,6 +583,167 @@ export function SettingsPage() {
             )}
           </div>
         )}
+
+        <div className="form-field">
+          <label htmlFor="bugLabel">Label que identifica bugs</label>
+          <input
+            id="bugLabel"
+            type="text"
+            list="all-labels"
+            placeholder="Bug"
+            value={bugLabel}
+            onChange={(e) => setBugLabel(e.target.value)}
+          />
+          <span className="hint">
+            Usada no resumo de bugs do relatório. Deixe em branco para esconder esse resumo.
+          </span>
+        </div>
+
+        <div className="form-field">
+          <label htmlFor="reviewLabel">Colunas que representam "em review"</label>
+
+          {reviewLabels.length > 0 && (
+            <div className="tag-list">
+              {reviewLabels.map((name) => (
+                <span key={name} className="tag">
+                  {name}
+                  <button
+                    type="button"
+                    className="tag-remove"
+                    aria-label={`Remover coluna ${name}`}
+                    onClick={() => removeReviewLabel(name)}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className="form-row">
+            <input
+              id="reviewLabel"
+              type="text"
+              list="review-columns"
+              placeholder="Review"
+              value={reviewLabelInput}
+              onChange={(e) => setReviewLabelInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  addReviewLabel(reviewLabelInput)
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="btn"
+              style={{ flex: '0 0 auto' }}
+              onClick={() => addReviewLabel(reviewLabelInput)}
+            >
+              Adicionar
+            </button>
+          </div>
+          <datalist id="review-columns">
+            {lists
+              .filter((l) => l.label && !reviewLabels.includes(l.label.name))
+              .map((list) => (
+                <option key={list.id} value={list.label?.name ?? ''} />
+              ))}
+          </datalist>
+
+          {lists.length > 0 && (
+            <div className="tag-list">
+              {lists
+                .filter((l) => l.label && !reviewLabels.includes(l.label.name))
+                .map((list) => (
+                  <button
+                    key={list.id}
+                    type="button"
+                    className="tag tag-suggestion"
+                    onClick={() => addReviewLabel(list.label?.name ?? '')}
+                  >
+                    + {list.label?.name}
+                  </button>
+                ))}
+            </div>
+          )}
+
+          <span className="hint">Usado no resumo de bugs, para contar quantos estão em review.</span>
+        </div>
+
+        <div className="form-field">
+          <label htmlFor="testLabel">Colunas que representam "em teste"</label>
+
+          {testLabels.length > 0 && (
+            <div className="tag-list">
+              {testLabels.map((name) => (
+                <span key={name} className="tag">
+                  {name}
+                  <button
+                    type="button"
+                    className="tag-remove"
+                    aria-label={`Remover coluna ${name}`}
+                    onClick={() => removeTestLabel(name)}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className="form-row">
+            <input
+              id="testLabel"
+              type="text"
+              list="test-columns"
+              placeholder="QA"
+              value={testLabelInput}
+              onChange={(e) => setTestLabelInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  addTestLabel(testLabelInput)
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="btn"
+              style={{ flex: '0 0 auto' }}
+              onClick={() => addTestLabel(testLabelInput)}
+            >
+              Adicionar
+            </button>
+          </div>
+          <datalist id="test-columns">
+            {lists
+              .filter((l) => l.label && !testLabels.includes(l.label.name))
+              .map((list) => (
+                <option key={list.id} value={list.label?.name ?? ''} />
+              ))}
+          </datalist>
+
+          {lists.length > 0 && (
+            <div className="tag-list">
+              {lists
+                .filter((l) => l.label && !testLabels.includes(l.label.name))
+                .map((list) => (
+                  <button
+                    key={list.id}
+                    type="button"
+                    className="tag tag-suggestion"
+                    onClick={() => addTestLabel(list.label?.name ?? '')}
+                  >
+                    + {list.label?.name}
+                  </button>
+                ))}
+            </div>
+          )}
+
+          <span className="hint">Usado no resumo de bugs, para contar quantos estão em teste.</span>
+        </div>
 
         <div className="actions-row">
           <button type="submit" className="btn btn-primary">
