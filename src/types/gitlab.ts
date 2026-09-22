@@ -6,6 +6,9 @@ export interface GitlabConfig {
   inProgressLabels: string[]
   excludeLabels: string[]
   pointLabelPrefix: string
+  bugLabel: string
+  reviewLabels: string[]
+  testLabels: string[]
 }
 
 export interface GitlabProject {

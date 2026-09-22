@@ -414,3 +414,35 @@ select:focus {
 .point-scale-chip:not(.point-scale-chip--ok) .point-scale-status {
   color: var(--text-muted);
 }
+
+.column-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.column-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  padding: 0.35rem 0.75rem 0.35rem 0.6rem;
+  cursor: pointer;
+}
+
+.column-option input[type='checkbox'] {
+  accent-color: var(--series-actual);
+  margin: 0;
+}
+
+.column-option--selected {
+  border-color: var(--series-actual);
+  background: color-mix(in srgb, var(--series-actual) 14%, var(--surface-2));
+  color: var(--text-primary);
+  font-weight: 600;
+}

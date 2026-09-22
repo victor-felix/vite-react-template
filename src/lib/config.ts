@@ -22,6 +22,9 @@ export function loadConfig(): GitlabConfig | null {
       inProgressLabels: parsed.inProgressLabels ?? [],
       excludeLabels: parsed.excludeLabels ?? [],
       pointLabelPrefix: parsed.pointLabelPrefix ?? 'point::',
+      bugLabel: parsed.bugLabel ?? 'Bug',
+      reviewLabels: parsed.reviewLabels ?? [],
+      testLabels: parsed.testLabels ?? [],
     } as GitlabConfig
   } catch {
     return null

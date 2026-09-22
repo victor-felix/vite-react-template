@@ -154,3 +154,12 @@ export function createLabel(config: GitlabConfig, name: string, color: string): 
     { method: 'POST', body: { name, color } },
   )
 }
+
+// Sem "state": a API devolve issues em qualquer estado (aberta ou fechada),
+// necessário para contar tanto os bugs em aberto quanto os já fechados.
+export function getIssuesByLabel(config: GitlabConfig, label: string): Promise<GitlabIssue[]> {
+  return gitlabFetch<GitlabIssue[]>(config, `/projects/${projectIdParam(config.projectPath)}/issues`, {
+    labels: label,
+    per_page: 100,
+  })
+}
