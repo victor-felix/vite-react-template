@@ -10,6 +10,7 @@ import {
   getProjectLabels,
 } from '../lib/gitlabApi'
 import { FIBONACCI_LABEL_COLORS, FIBONACCI_SCALE, pointLabelName } from '../lib/points'
+import { BoardColumnPicker } from '../components/BoardColumnPicker'
 import type { GitlabBoard, GitlabBoardList, GitlabLabel } from '../types/gitlab'
 
 export function SettingsPage() {
@@ -53,6 +54,10 @@ export function SettingsPage() {
     setDoneLabels((prev) => prev.filter((l) => l !== name))
   }
 
+  function toggleDoneLabel(name: string) {
+    setDoneLabels((prev) => (prev.includes(name) ? prev.filter((l) => l !== name) : [...prev, name]))
+  }
+
   function addInProgressLabel(value: string) {
     const name = value.trim()
     if (!name) return
@@ -62,6 +67,12 @@ export function SettingsPage() {
 
   function removeInProgressLabel(name: string) {
     setInProgressLabels((prev) => prev.filter((l) => l !== name))
+  }
+
+  function toggleInProgressLabel(name: string) {
+    setInProgressLabels((prev) =>
+      prev.includes(name) ? prev.filter((l) => l !== name) : [...prev, name],
+    )
   }
 
   function addExcludeLabel(value: string) {
@@ -86,6 +97,10 @@ export function SettingsPage() {
     setReviewLabels((prev) => prev.filter((l) => l !== name))
   }
 
+  function toggleReviewLabel(name: string) {
+    setReviewLabels((prev) => (prev.includes(name) ? prev.filter((l) => l !== name) : [...prev, name]))
+  }
+
   function addTestLabel(value: string) {
     const name = value.trim()
     if (!name) return
@@ -95,6 +110,10 @@ export function SettingsPage() {
 
   function removeTestLabel(name: string) {
     setTestLabels((prev) => prev.filter((l) => l !== name))
+  }
+
+  function toggleTestLabel(name: string) {
+    setTestLabels((prev) => (prev.includes(name) ? prev.filter((l) => l !== name) : [...prev, name]))
   }
 
   function currentConfigDraft() {
@@ -232,6 +251,15 @@ export function SettingsPage() {
     (value) => !allLabels.some((l) => l.name === pointLabelName(pointLabelPrefix, value)),
   )
 
+  // Valores selecionados que não correspondem a nenhuma coluna do quadro
+  // carregado no momento (digitados manualmente antes, ou de outro quadro) —
+  // continuam listados para poder ser removidos, mesmo sem aparecer no picker.
+  const boardColumnNames = new Set(lists.map((l) => l.label?.name).filter((n): n is string => Boolean(n)))
+  const extraDoneLabels = doneLabels.filter((name) => !boardColumnNames.has(name))
+  const extraInProgressLabels = inProgressLabels.filter((name) => !boardColumnNames.has(name))
+  const extraReviewLabels = reviewLabels.filter((name) => !boardColumnNames.has(name))
+  const extraTestLabels = testLabels.filter((name) => !boardColumnNames.has(name))
+
   return (
     <>
       <div className="page-header">
@@ -316,9 +344,9 @@ export function SettingsPage() {
         <div className="form-field">
           <label htmlFor="doneLabel">Colunas que representam "finalizado"</label>
 
-          {doneLabels.length > 0 && (
+          {extraDoneLabels.length > 0 && (
             <div className="tag-list">
-              {doneLabels.map((name) => (
+              {extraDoneLabels.map((name) => (
                 <span key={name} className="tag">
                   {name}
                   <button
@@ -334,68 +362,47 @@ export function SettingsPage() {
             </div>
           )}
 
-          <div className="form-row">
-            <input
-              id="doneLabel"
-              type="text"
-              list="done-columns"
-              placeholder="Done"
-              value={doneLabelInput}
-              onChange={(e) => setDoneLabelInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  addDoneLabel(doneLabelInput)
-                }
-              }}
-            />
-            <button
-              type="button"
-              className="btn"
-              style={{ flex: '0 0 auto' }}
-              onClick={() => addDoneLabel(doneLabelInput)}
-            >
-              Adicionar
-            </button>
-          </div>
-          <datalist id="done-columns">
-            {lists
-              .filter((l) => l.label && !doneLabels.includes(l.label.name))
-              .map((list) => (
-                <option key={list.id} value={list.label?.name ?? ''} />
-              ))}
-          </datalist>
-
-          {lists.length > 0 && (
-            <div className="tag-list">
-              {lists
-                .filter((l) => l.label && !doneLabels.includes(l.label.name))
-                .map((list) => (
-                  <button
-                    key={list.id}
-                    type="button"
-                    className="tag tag-suggestion"
-                    onClick={() => addDoneLabel(list.label?.name ?? '')}
-                  >
-                    + {list.label?.name}
-                  </button>
-                ))}
+          {lists.length > 0 ? (
+            <BoardColumnPicker idPrefix="done" lists={lists} selected={doneLabels} onToggle={toggleDoneLabel} />
+          ) : (
+            <div className="form-row">
+              <input
+                id="doneLabel"
+                type="text"
+                placeholder="Done"
+                value={doneLabelInput}
+                onChange={(e) => setDoneLabelInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    addDoneLabel(doneLabelInput)
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="btn"
+                style={{ flex: '0 0 auto' }}
+                onClick={() => addDoneLabel(doneLabelInput)}
+              >
+                Adicionar
+              </button>
             </div>
           )}
 
           <span className="hint">
             {lists.length > 0
-              ? 'Clique nas colunas do quadro para adicioná-las, ou digite manualmente. Uma tarefa é considerada finalizada ao entrar em qualquer uma das colunas selecionadas.'
-              : 'Digite o nome exato de cada label/coluna que indica conclusão. Carregue os quadros acima para ver sugestões.'}
+              ? 'Marque as colunas do quadro que indicam que a tarefa foi concluída. Uma tarefa é considerada finalizada ao entrar em qualquer uma das colunas selecionadas.'
+              : 'Carregue os quadros do projeto acima para selecionar as colunas, ou digite o nome exato da label.'}
           </span>
         </div>
 
         <div className="form-field">
           <label htmlFor="inProgressLabel">Colunas que representam "em andamento"</label>
 
-          {inProgressLabels.length > 0 && (
+          {extraInProgressLabels.length > 0 && (
             <div className="tag-list">
-              {inProgressLabels.map((name) => (
+              {extraInProgressLabels.map((name) => (
                 <span key={name} className="tag">
                   {name}
                   <button
@@ -411,52 +418,36 @@ export function SettingsPage() {
             </div>
           )}
 
-          <div className="form-row">
-            <input
-              id="inProgressLabel"
-              type="text"
-              list="in-progress-columns"
-              placeholder="Doing"
-              value={inProgressLabelInput}
-              onChange={(e) => setInProgressLabelInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  addInProgressLabel(inProgressLabelInput)
-                }
-              }}
+          {lists.length > 0 ? (
+            <BoardColumnPicker
+              idPrefix="in-progress"
+              lists={lists}
+              selected={inProgressLabels}
+              onToggle={toggleInProgressLabel}
             />
-            <button
-              type="button"
-              className="btn"
-              style={{ flex: '0 0 auto' }}
-              onClick={() => addInProgressLabel(inProgressLabelInput)}
-            >
-              Adicionar
-            </button>
-          </div>
-          <datalist id="in-progress-columns">
-            {lists
-              .filter((l) => l.label && !inProgressLabels.includes(l.label.name))
-              .map((list) => (
-                <option key={list.id} value={list.label?.name ?? ''} />
-              ))}
-          </datalist>
-
-          {lists.length > 0 && (
-            <div className="tag-list">
-              {lists
-                .filter((l) => l.label && !inProgressLabels.includes(l.label.name))
-                .map((list) => (
-                  <button
-                    key={list.id}
-                    type="button"
-                    className="tag tag-suggestion"
-                    onClick={() => addInProgressLabel(list.label?.name ?? '')}
-                  >
-                    + {list.label?.name}
-                  </button>
-                ))}
+          ) : (
+            <div className="form-row">
+              <input
+                id="inProgressLabel"
+                type="text"
+                placeholder="Doing"
+                value={inProgressLabelInput}
+                onChange={(e) => setInProgressLabelInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    addInProgressLabel(inProgressLabelInput)
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="btn"
+                style={{ flex: '0 0 auto' }}
+                onClick={() => addInProgressLabel(inProgressLabelInput)}
+              >
+                Adicionar
+              </button>
             </div>
           )}
 
@@ -464,7 +455,8 @@ export function SettingsPage() {
             Usado só no gráfico de Gantt: a barra de cada tarefa começa quando ela entra em
             qualquer uma dessas colunas (em vez da data de criação, que costuma ser bem anterior
             ao início do trabalho de fato). Opcional — sem isso, a barra começa na data de início
-            da milestone.
+            da milestone.{' '}
+            {lists.length === 0 && 'Carregue os quadros do projeto acima para selecionar as colunas.'}
           </span>
         </div>
 
@@ -602,9 +594,9 @@ export function SettingsPage() {
         <div className="form-field">
           <label htmlFor="reviewLabel">Colunas que representam "em review"</label>
 
-          {reviewLabels.length > 0 && (
+          {extraReviewLabels.length > 0 && (
             <div className="tag-list">
-              {reviewLabels.map((name) => (
+              {extraReviewLabels.map((name) => (
                 <span key={name} className="tag">
                   {name}
                   <button
@@ -620,64 +612,51 @@ export function SettingsPage() {
             </div>
           )}
 
-          <div className="form-row">
-            <input
-              id="reviewLabel"
-              type="text"
-              list="review-columns"
-              placeholder="Review"
-              value={reviewLabelInput}
-              onChange={(e) => setReviewLabelInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  addReviewLabel(reviewLabelInput)
-                }
-              }}
+          {lists.length > 0 ? (
+            <BoardColumnPicker
+              idPrefix="review"
+              lists={lists}
+              selected={reviewLabels}
+              onToggle={toggleReviewLabel}
             />
-            <button
-              type="button"
-              className="btn"
-              style={{ flex: '0 0 auto' }}
-              onClick={() => addReviewLabel(reviewLabelInput)}
-            >
-              Adicionar
-            </button>
-          </div>
-          <datalist id="review-columns">
-            {lists
-              .filter((l) => l.label && !reviewLabels.includes(l.label.name))
-              .map((list) => (
-                <option key={list.id} value={list.label?.name ?? ''} />
-              ))}
-          </datalist>
-
-          {lists.length > 0 && (
-            <div className="tag-list">
-              {lists
-                .filter((l) => l.label && !reviewLabels.includes(l.label.name))
-                .map((list) => (
-                  <button
-                    key={list.id}
-                    type="button"
-                    className="tag tag-suggestion"
-                    onClick={() => addReviewLabel(list.label?.name ?? '')}
-                  >
-                    + {list.label?.name}
-                  </button>
-                ))}
+          ) : (
+            <div className="form-row">
+              <input
+                id="reviewLabel"
+                type="text"
+                placeholder="Review"
+                value={reviewLabelInput}
+                onChange={(e) => setReviewLabelInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    addReviewLabel(reviewLabelInput)
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="btn"
+                style={{ flex: '0 0 auto' }}
+                onClick={() => addReviewLabel(reviewLabelInput)}
+              >
+                Adicionar
+              </button>
             </div>
           )}
 
-          <span className="hint">Usado no resumo de bugs, para contar quantos estão em review.</span>
+          <span className="hint">
+            Usado no resumo de bugs, para contar quantos estão em review.{' '}
+            {lists.length === 0 && 'Carregue os quadros do projeto acima para selecionar as colunas.'}
+          </span>
         </div>
 
         <div className="form-field">
           <label htmlFor="testLabel">Colunas que representam "em teste"</label>
 
-          {testLabels.length > 0 && (
+          {extraTestLabels.length > 0 && (
             <div className="tag-list">
-              {testLabels.map((name) => (
+              {extraTestLabels.map((name) => (
                 <span key={name} className="tag">
                   {name}
                   <button
@@ -693,56 +672,38 @@ export function SettingsPage() {
             </div>
           )}
 
-          <div className="form-row">
-            <input
-              id="testLabel"
-              type="text"
-              list="test-columns"
-              placeholder="QA"
-              value={testLabelInput}
-              onChange={(e) => setTestLabelInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  addTestLabel(testLabelInput)
-                }
-              }}
-            />
-            <button
-              type="button"
-              className="btn"
-              style={{ flex: '0 0 auto' }}
-              onClick={() => addTestLabel(testLabelInput)}
-            >
-              Adicionar
-            </button>
-          </div>
-          <datalist id="test-columns">
-            {lists
-              .filter((l) => l.label && !testLabels.includes(l.label.name))
-              .map((list) => (
-                <option key={list.id} value={list.label?.name ?? ''} />
-              ))}
-          </datalist>
-
-          {lists.length > 0 && (
-            <div className="tag-list">
-              {lists
-                .filter((l) => l.label && !testLabels.includes(l.label.name))
-                .map((list) => (
-                  <button
-                    key={list.id}
-                    type="button"
-                    className="tag tag-suggestion"
-                    onClick={() => addTestLabel(list.label?.name ?? '')}
-                  >
-                    + {list.label?.name}
-                  </button>
-                ))}
+          {lists.length > 0 ? (
+            <BoardColumnPicker idPrefix="test" lists={lists} selected={testLabels} onToggle={toggleTestLabel} />
+          ) : (
+            <div className="form-row">
+              <input
+                id="testLabel"
+                type="text"
+                placeholder="QA"
+                value={testLabelInput}
+                onChange={(e) => setTestLabelInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    addTestLabel(testLabelInput)
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="btn"
+                style={{ flex: '0 0 auto' }}
+                onClick={() => addTestLabel(testLabelInput)}
+              >
+                Adicionar
+              </button>
             </div>
           )}
 
-          <span className="hint">Usado no resumo de bugs, para contar quantos estão em teste.</span>
+          <span className="hint">
+            Usado no resumo de bugs, para contar quantos estão em teste.{' '}
+            {lists.length === 0 && 'Carregue os quadros do projeto acima para selecionar as colunas.'}
+          </span>
         </div>
 
         <div className="actions-row">
