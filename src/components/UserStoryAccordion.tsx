@@ -1,13 +1,14 @@
 import { stripTaskCode, type StoryStatus, type UserStory } from '../lib/userStories'
 
-const STATUS_LABEL: Record<StoryStatus, string> = {
+// Histórias em validação já ficam sob a seção "Em validação (wiki)", então não recebem tag.
+const STATUS_LABEL: Partial<Record<StoryStatus, string>> = {
   opened: 'Aberta',
   closed: 'Fechada',
-  validation: 'Em validação',
 }
 
 export function UserStoryAccordion({ story }: { story: UserStory }) {
   const { done, total, percent } = story.progress
+  const statusLabel = STATUS_LABEL[story.status]
 
   return (
     <details className="story">
@@ -19,7 +20,7 @@ export function UserStoryAccordion({ story }: { story: UserStory }) {
             {story.title}
           </span>
           <span className="story__meta">
-            <span className={`tag story__badge story__badge--${story.status}`}>{STATUS_LABEL[story.status]}</span>
+            {statusLabel && <span className={`tag story__badge story__badge--${story.status}`}>{statusLabel}</span>}
             {percent === null ? (
               <span>Sem subtasks</span>
             ) : (

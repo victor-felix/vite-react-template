@@ -544,11 +544,6 @@ select:focus {
   color: var(--text-muted);
 }
 
-.story__badge--validation {
-  border-color: var(--status-warning);
-  color: var(--text-secondary);
-}
-
 .story__progress {
   grid-column: 2;
   margin-bottom: 0;
