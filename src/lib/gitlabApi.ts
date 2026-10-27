@@ -8,6 +8,7 @@ import type {
   GitlabMilestone,
   GitlabProject,
   GitlabResourceLabelEvent,
+  GitlabWikiPage,
 } from '../types/gitlab'
 
 export class GitlabApiError extends Error {
@@ -24,12 +25,12 @@ function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.trim().replace(/\/+$/, '')
 }
 
-async function gitlabFetch<T>(
+async function gitlabRequest<T>(
   config: Pick<GitlabConfig, 'baseUrl' | 'token'>,
   path: string,
   params: Record<string, string | number | undefined> = {},
   init: { method?: string; body?: unknown } = {},
-): Promise<T> {
+): Promise<{ data: T; headers: Headers }> {
   const url = new URL(`${normalizeBaseUrl(config.baseUrl)}/api/v4${path}`)
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined) url.searchParams.set(key, String(value))
@@ -61,7 +62,41 @@ async function gitlabFetch<T>(
     throw new GitlabApiError(`Erro ${response.status} ao chamar a API do GitLab.`, response.status)
   }
 
-  return response.json() as Promise<T>
+  return { data: (await response.json()) as T, headers: response.headers }
+}
+
+async function gitlabFetch<T>(
+  config: Pick<GitlabConfig, 'baseUrl' | 'token'>,
+  path: string,
+  params: Record<string, string | number | undefined> = {},
+  init: { method?: string; body?: unknown } = {},
+): Promise<T> {
+  const { data } = await gitlabRequest<T>(config, path, params, init)
+  return data
+}
+
+// Limite de segurança: 50 páginas de 100 = 5.000 itens.
+const MAX_PAGES = 50
+
+// Segue o cabeçalho x-next-page até a última página. As demais chamadas usam
+// gitlabFetch com per_page=100 e ficam limitadas aos 100 primeiros itens.
+async function gitlabFetchAll<T>(
+  config: Pick<GitlabConfig, 'baseUrl' | 'token'>,
+  path: string,
+  params: Record<string, string | number | undefined> = {},
+): Promise<T[]> {
+  const items: T[] = []
+  let page: string | null = '1'
+  for (let i = 0; page && i < MAX_PAGES; i += 1) {
+    const { data, headers }: { data: T[]; headers: Headers } = await gitlabRequest<T[]>(config, path, {
+      ...params,
+      per_page: 100,
+      page,
+    })
+    items.push(...data)
+    page = headers.get('x-next-page')
+  }
+  return items
 }
 
 function projectIdParam(projectPath: string): string {
@@ -162,4 +197,17 @@ export function getIssuesByLabel(config: GitlabConfig, label: string): Promise<G
     labels: label,
     per_page: 100,
   })
+}
+
+// Mesmo filtro de getIssuesByLabel, mas percorrendo todas as páginas.
+export function getAllIssuesByLabel(config: GitlabConfig, label: string): Promise<GitlabIssue[]> {
+  return gitlabFetchAll<GitlabIssue>(config, `/projects/${projectIdParam(config.projectPath)}/issues`, {
+    labels: label,
+  })
+}
+
+// Sem with_content: devolve só slug/título/formato de todas as páginas da
+// wiki (esse endpoint não pagina).
+export function getWikiPages(config: GitlabConfig): Promise<GitlabWikiPage[]> {
+  return gitlabFetch<GitlabWikiPage[]>(config, `/projects/${projectIdParam(config.projectPath)}/wikis`)
 }

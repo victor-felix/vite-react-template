@@ -10,6 +10,7 @@ import {
   getProjectLabels,
 } from '../lib/gitlabApi'
 import { FIBONACCI_LABEL_COLORS, FIBONACCI_SCALE, pointLabelName } from '../lib/points'
+import { normalizeWikiPath } from '../lib/userStories'
 import { BoardColumnPicker } from '../components/BoardColumnPicker'
 import type { GitlabBoard, GitlabBoardList, GitlabLabel } from '../types/gitlab'
 
@@ -32,6 +33,9 @@ export function SettingsPage() {
   const [reviewLabelInput, setReviewLabelInput] = useState('')
   const [testLabels, setTestLabels] = useState<string[]>(config?.testLabels ?? [])
   const [testLabelInput, setTestLabelInput] = useState('')
+  const [storyLabel, setStoryLabel] = useState(config?.storyLabel ?? 'História')
+  const [taskLabel, setTaskLabel] = useState(config?.taskLabel ?? 'Task')
+  const [validationWikiPath, setValidationWikiPath] = useState(config?.validationWikiPath ?? '')
 
   const [loadingBoards, setLoadingBoards] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -128,6 +132,9 @@ export function SettingsPage() {
       bugLabel,
       reviewLabels,
       testLabels,
+      storyLabel,
+      taskLabel,
+      validationWikiPath,
     }
   }
 
@@ -218,6 +225,9 @@ export function SettingsPage() {
       bugLabel: bugLabel.trim(),
       reviewLabels,
       testLabels,
+      storyLabel: storyLabel.trim(),
+      taskLabel: taskLabel.trim(),
+      validationWikiPath: normalizeWikiPath(validationWikiPath),
     })
     setSaved(true)
     navigate('/')
@@ -240,6 +250,9 @@ export function SettingsPage() {
     setReviewLabelInput('')
     setTestLabels([])
     setTestLabelInput('')
+    setStoryLabel('História')
+    setTaskLabel('Task')
+    setValidationWikiPath('')
     setProjectName(null)
     setBoards([])
     setLists([])
@@ -703,6 +716,54 @@ export function SettingsPage() {
           <span className="hint">
             Usado no resumo de bugs, para contar quantos estão em teste.{' '}
             {lists.length === 0 && 'Carregue os quadros do projeto acima para selecionar as colunas.'}
+          </span>
+        </div>
+
+        <div className="form-field">
+          <label htmlFor="storyLabel">Label das histórias de usuário</label>
+          <input
+            id="storyLabel"
+            type="text"
+            list="all-labels"
+            placeholder="História"
+            value={storyLabel}
+            onChange={(e) => setStoryLabel(e.target.value)}
+          />
+          <span className="hint">
+            Issues com esta label aparecem na página Histórias. O código da história vem do início do
+            título (ex.: "US007 - Gerenciar Credenciamento").
+          </span>
+        </div>
+
+        <div className="form-field">
+          <label htmlFor="taskLabel">Label das subtasks</label>
+          <input
+            id="taskLabel"
+            type="text"
+            list="all-labels"
+            placeholder="Task"
+            value={taskLabel}
+            onChange={(e) => setTaskLabel(e.target.value)}
+          />
+          <span className="hint">
+            Uma issue com esta label é subtask da história cujo código está entre colchetes no início
+            do título (ex.: "[US007] - Validar unicidade de SIPAR").
+          </span>
+        </div>
+
+        <div className="form-field">
+          <label htmlFor="validationWikiPath">Pasta da wiki com histórias em validação</label>
+          <input
+            id="validationWikiPath"
+            type="text"
+            placeholder="Documentação/Histórias/Validação"
+            value={validationWikiPath}
+            onChange={(e) => setValidationWikiPath(e.target.value)}
+          />
+          <span className="hint">
+            {validationWikiPath.trim() && normalizeWikiPath(validationWikiPath) !== validationWikiPath.trim()
+              ? `Será lida a pasta "${normalizeWikiPath(validationWikiPath)}".`
+              : 'Cole a URL da pasta copiada do navegador ou o caminho da página. Opcional — em branco, a seção "Em validação" fica oculta.'}
           </span>
         </div>
 

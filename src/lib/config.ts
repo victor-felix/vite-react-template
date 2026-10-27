@@ -25,6 +25,9 @@ export function loadConfig(): GitlabConfig | null {
       bugLabel: parsed.bugLabel ?? 'Bug',
       reviewLabels: parsed.reviewLabels ?? [],
       testLabels: parsed.testLabels ?? [],
+      storyLabel: parsed.storyLabel ?? 'História',
+      taskLabel: parsed.taskLabel ?? 'Task',
+      validationWikiPath: parsed.validationWikiPath ?? '',
     } as GitlabConfig
   } catch {
     return null

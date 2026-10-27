@@ -19,6 +19,12 @@ export function Layout() {
             Relatório
           </NavLink>
           <NavLink
+            to="/historias"
+            className={({ isActive }) => `app-nav__link${isActive ? ' is-active' : ''}`}
+          >
+            Histórias
+          </NavLink>
+          <NavLink
             to="/settings"
             className={({ isActive }) => `app-nav__link${isActive ? ' is-active' : ''}`}
           >

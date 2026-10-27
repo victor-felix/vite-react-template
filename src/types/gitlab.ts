@@ -9,6 +9,9 @@ export interface GitlabConfig {
   bugLabel: string
   reviewLabels: string[]
   testLabels: string[]
+  storyLabel: string
+  taskLabel: string
+  validationWikiPath: string
 }
 
 export interface GitlabProject {
@@ -34,6 +37,7 @@ export interface GitlabIssue {
   id: number
   iid: number
   title: string
+  description: string | null
   state: 'opened' | 'closed'
   created_at: string
   closed_at: string | null
@@ -65,6 +69,12 @@ export interface GitlabResourceLabelEvent {
   action: 'add' | 'remove'
   created_at: string
   label: GitlabLabel | null
+}
+
+export interface GitlabWikiPage {
+  slug: string
+  title: string
+  format: string
 }
 
 export interface GitlabMergeRequest {
